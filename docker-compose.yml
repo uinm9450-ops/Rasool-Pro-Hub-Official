@@ -1,0 +1,57 @@
+version: "3.8"
+
+services:
+  db:
+    image: postgres:15
+    container_name: global_platform_db
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: global_platform
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    restart: unless-stopped
+
+  redis:
+    image: redis:7
+    container_name: global_platform_redis
+    ports:
+      - "6379:6379"
+    restart: unless-stopped
+
+  backend:
+    build:
+      context: ./backend
+    container_name: global_platform_backend
+    ports:
+      - "8000:8000"
+    environment:
+      - DATABASE_URL=postgresql+asyncpg://postgres:password@db:5432/global_platform
+      - REDIS_URL=redis://redis:6379/0
+      - SECRET_KEY=your-super-secret-key-change-in-prod
+    depends_on:
+      - db
+      - redis
+    volumes:
+      - ./backend:/app
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: ./frontend
+    container_name: global_platform_frontend
+    ports:
+      - "5173:5173"
+    environment:
+      - VITE_API_URL=http://localhost:8000
+    depends_on:
+      - backend
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
